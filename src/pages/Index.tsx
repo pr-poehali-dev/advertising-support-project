@@ -2,16 +2,17 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { posts, type Post, type Category } from "@/data/posts";
 
-type Page = "blog" | "post" | "about" | "support";
+type Page = "blog" | "post" | "about" | "support" | "admin";
 type Filter = "все" | Category;
 
-const FILTERS: Filter[] = ["все", "с нуля", "основы", "практика", "продвинутое"];
+const FILTERS: Filter[] = ["все", "с нуля", "основы", "практика", "продвинутое", "нейросети"];
 
 const CATEGORY_COLOR: Record<Category, string> = {
   "с нуля": "text-emerald-400 bg-emerald-400/10 border-emerald-400/30",
   "основы": "text-blue-400 bg-blue-400/10 border-blue-400/30",
   "практика": "text-amber-400 bg-amber-400/10 border-amber-400/30",
   "продвинутое": "text-rose-400 bg-rose-400/10 border-rose-400/30",
+  "нейросети": "text-violet-400 bg-violet-400/10 border-violet-400/30",
 };
 
 function PostCard({ post, onClick }: { post: Post; onClick: () => void }) {
@@ -151,24 +152,28 @@ function BlogPage({ onOpenPost }: { onOpenPost: (post: Post) => void }) {
 
       <div className="relative overflow-hidden rounded-2xl mb-8 p-px"
         style={{ background: "linear-gradient(135deg, #a855f7, #00e5ff, #f72585)" }}>
-        <div className="relative rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-center gap-4"
-          style={{ background: "rgba(10,10,20,0.85)", backdropFilter: "blur(12px)" }}>
-          <div className="flex flex-col sm:flex-row items-center gap-3 flex-1 text-center sm:text-left">
-            <span className="text-3xl animate-float">💜</span>
-            <div>
-              <p className="font-montserrat font-bold text-white text-sm">Блог существует на ваши донаты</p>
-              <p className="font-golos text-white/50 text-xs">Поддержи развитие — это займёт 1 минуту</p>
-            </div>
+        <div className="relative rounded-2xl px-5 py-5 flex flex-col items-center gap-3 text-center"
+          style={{ background: "rgba(10,10,20,0.88)", backdropFilter: "blur(12px)" }}>
+          <span className="text-2xl animate-float">💜</span>
+          <div>
+            <p className="font-montserrat font-bold text-white text-sm mb-0.5">Блог существует на ваши донаты</p>
+            <p className="font-golos text-white/50 text-xs">Переведи на карту — любая сумма поможет</p>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <a href="tel:+79855127706"
-              className="flex items-center gap-1.5 bg-yellow-400 hover:bg-yellow-300 text-black font-montserrat font-bold text-xs px-4 py-2.5 rounded-xl transition-all hover:scale-105 whitespace-nowrap">
-              💳 Т-Банк
-            </a>
-            <a href="tel:+79776277844"
-              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-400 text-white font-montserrat font-bold text-xs px-4 py-2.5 rounded-xl transition-all hover:scale-105 whitespace-nowrap">
-              🏦 Сбербанк
-            </a>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-1">
+            <div className="flex items-center gap-3 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-4 py-2.5">
+              <span className="text-lg">💳</span>
+              <div className="text-left">
+                <p className="font-golos text-white/50 text-xs">Т-Банк</p>
+                <p className="font-montserrat font-bold text-yellow-300 text-sm tracking-wide">+7 985 512-77-06</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-2.5">
+              <span className="text-lg">🏦</span>
+              <div className="text-left">
+                <p className="font-golos text-white/50 text-xs">Сбербанк</p>
+                <p className="font-montserrat font-bold text-green-300 text-sm tracking-wide">+7 977 627-78-44</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -309,10 +314,192 @@ function SupportPage() {
   );
 }
 
+const ADMIN_AUTH_URL = "https://functions.poehali.dev/6d1ebfe4-7aee-491f-9046-4664080c31f1";
+
+function AdminPage() {
+  const [step, setStep] = useState<"gate" | "login" | "panel">("gate");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // форма новой статьи
+  const [title, setTitle] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [category, setCategory] = useState<Category>("основы");
+  const [emoji, setEmoji] = useState("📝");
+  const [readTime, setReadTime] = useState("5");
+  const [content, setContent] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const handleLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(ADMIN_AUTH_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setStep("panel");
+      } else {
+        setError("Неверный пароль. Попробуй ещё раз.");
+      }
+    } catch {
+      setError("Ошибка соединения. Попробуй позже.");
+    }
+    setLoading(false);
+  };
+
+  const handleSave = () => {
+    const newPost = {
+      id: Date.now(),
+      title, excerpt, category,
+      emoji, readTime: parseInt(readTime), content,
+    };
+    const existing = JSON.parse(localStorage.getItem("admin_posts") || "[]");
+    existing.push(newPost);
+    localStorage.setItem("admin_posts", JSON.stringify(existing));
+    setSaved(true);
+    setTitle(""); setExcerpt(""); setContent(""); setEmoji("📝");
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  if (step === "gate") {
+    return (
+      <div className="animate-fade-in max-w-lg mx-auto text-center py-20 px-4">
+        <div className="text-5xl mb-6">🔐</div>
+        <h1 className="font-montserrat font-black text-white text-2xl mb-3">Административная панель</h1>
+        <div className="glass-card border border-white/10 rounded-2xl p-8 text-left mb-6">
+          <p className="font-golos text-white/60 text-base leading-relaxed">
+            Здравствуйте, уважаемые читатели. Это не для вас, а для системных администраторов.
+          </p>
+          <p className="font-golos text-white/40 text-sm mt-3">
+            Если вы системный администратор — нажмите кнопку ниже.
+          </p>
+        </div>
+        <button
+          onClick={() => setStep("login")}
+          className="shimmer-btn text-white font-montserrat font-bold px-8 py-3 rounded-2xl transition-all hover:scale-105"
+        >
+          Я системный администратор →
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "login") {
+    return (
+      <div className="animate-fade-in max-w-sm mx-auto text-center py-20 px-4">
+        <div className="text-4xl mb-5">🗝️</div>
+        <h2 className="font-montserrat font-black text-white text-xl mb-6">Введите пароль</h2>
+        <div className="space-y-3">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+            placeholder="Пароль администратора"
+            className="w-full glass-card border border-white/10 rounded-xl px-4 py-3 font-golos text-white bg-transparent placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 transition-colors text-center tracking-widest"
+          />
+          {error && <p className="font-golos text-rose-400 text-sm">{error}</p>}
+          <button
+            onClick={handleLogin}
+            disabled={loading || !password}
+            className="w-full shimmer-btn text-white font-montserrat font-bold py-3 rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Проверяю..." : "Войти"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-fade-in max-w-2xl mx-auto py-10">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="text-3xl">⚙️</div>
+        <div>
+          <h1 className="font-montserrat font-black text-white text-xl">Панель администратора</h1>
+          <p className="font-golos text-white/40 text-sm">Добавление новых статей</p>
+        </div>
+      </div>
+
+      <div className="glass-card border border-white/10 rounded-2xl p-6 space-y-4">
+        <h2 className="font-montserrat font-bold text-white text-base mb-4">Новая статья</h2>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="font-golos text-white/40 text-xs mb-1 block">Эмодзи</label>
+            <input value={emoji} onChange={(e) => setEmoji(e.target.value)}
+              className="w-full glass-card border border-white/10 rounded-xl px-4 py-2.5 font-golos text-white bg-transparent focus:outline-none focus:border-purple-500/50 text-2xl"
+            />
+          </div>
+          <div>
+            <label className="font-golos text-white/40 text-xs mb-1 block">Время чтения (мин)</label>
+            <input type="number" value={readTime} onChange={(e) => setReadTime(e.target.value)}
+              className="w-full glass-card border border-white/10 rounded-xl px-4 py-2.5 font-golos text-white bg-transparent focus:outline-none focus:border-purple-500/50"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-golos text-white/40 text-xs mb-1 block">Заголовок</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название статьи"
+            className="w-full glass-card border border-white/10 rounded-xl px-4 py-2.5 font-golos text-white bg-transparent placeholder:text-white/20 focus:outline-none focus:border-purple-500/50"
+          />
+        </div>
+
+        <div>
+          <label className="font-golos text-white/40 text-xs mb-1 block">Краткое описание</label>
+          <input value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Пара предложений о чём статья"
+            className="w-full glass-card border border-white/10 rounded-xl px-4 py-2.5 font-golos text-white bg-transparent placeholder:text-white/20 focus:outline-none focus:border-purple-500/50"
+          />
+        </div>
+
+        <div>
+          <label className="font-golos text-white/40 text-xs mb-1 block">Категория</label>
+          <select value={category} onChange={(e) => setCategory(e.target.value as Category)}
+            className="w-full glass-card border border-white/10 rounded-xl px-4 py-2.5 font-golos text-white bg-[#0a0a14] focus:outline-none focus:border-purple-500/50"
+          >
+            {(["с нуля", "основы", "практика", "продвинутое", "нейросети"] as Category[]).map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="font-golos text-white/40 text-xs mb-1 block">Текст статьи (Markdown)</label>
+          <textarea value={content} onChange={(e) => setContent(e.target.value)}
+            rows={12} placeholder={"## Заголовок раздела\n\nТекст статьи...\n\n```python\nprint('Hello')\n```"}
+            className="w-full glass-card border border-white/10 rounded-xl px-4 py-3 font-mono text-white/80 text-sm bg-transparent placeholder:text-white/20 focus:outline-none focus:border-purple-500/50 resize-none leading-relaxed"
+          />
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={!title || !content}
+          className="w-full shimmer-btn text-white font-montserrat font-bold py-3 rounded-xl transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {saved ? "✅ Сохранено!" : "Сохранить статью"}
+        </button>
+
+        {saved && (
+          <p className="font-golos text-white/40 text-xs text-center">
+            Статья сохранена локально. Для публикации на сайте — передай данные разработчику.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const NAV = [
   { id: "blog" as Page, label: "Статьи", icon: "BookOpen" },
   { id: "about" as Page, label: "О проекте", icon: "Info" },
   { id: "support" as Page, label: "Поддержать", icon: "Heart" },
+  { id: "admin" as Page, label: "Админка", icon: "Settings" },
 ];
 
 export default function Index() {
@@ -358,8 +545,10 @@ export default function Index() {
           <BlogPage onOpenPost={(p) => { setOpenPost(p); window.scrollTo({ top: 0 }); }} />
         ) : page === "about" ? (
           <AboutPage />
-        ) : (
+        ) : page === "support" ? (
           <SupportPage />
+        ) : (
+          <AdminPage />
         )}
       </main>
 
