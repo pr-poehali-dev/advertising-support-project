@@ -149,6 +149,30 @@ function BlogPage({ onOpenPost }: { onOpenPost: (post: Post) => void }) {
         </p>
       </div>
 
+      <div className="relative overflow-hidden rounded-2xl mb-8 p-px"
+        style={{ background: "linear-gradient(135deg, #a855f7, #00e5ff, #f72585)" }}>
+        <div className="relative rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-center gap-4"
+          style={{ background: "rgba(10,10,20,0.85)", backdropFilter: "blur(12px)" }}>
+          <div className="flex flex-col sm:flex-row items-center gap-3 flex-1 text-center sm:text-left">
+            <span className="text-3xl animate-float">💜</span>
+            <div>
+              <p className="font-montserrat font-bold text-white text-sm">Блог существует на ваши донаты</p>
+              <p className="font-golos text-white/50 text-xs">Поддержи развитие — это займёт 1 минуту</p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <a href="tel:+79855127706"
+              className="flex items-center gap-1.5 bg-yellow-400 hover:bg-yellow-300 text-black font-montserrat font-bold text-xs px-4 py-2.5 rounded-xl transition-all hover:scale-105 whitespace-nowrap">
+              💳 Т-Банк
+            </a>
+            <a href="tel:+79776277844"
+              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-400 text-white font-montserrat font-bold text-xs px-4 py-2.5 rounded-xl transition-all hover:scale-105 whitespace-nowrap">
+              🏦 Сбербанк
+            </a>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Icon name="Search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
