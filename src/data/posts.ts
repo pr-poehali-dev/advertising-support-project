@@ -8,6 +8,7 @@ export interface Post {
   emoji: string;
   readTime: number;
   content: string;
+  slug?: string;
 }
 
 export const posts: Post[] = [

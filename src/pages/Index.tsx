@@ -1,6 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { posts, type Post, type Category } from "@/data/posts";
+import { posts as staticPosts, type Post, type Category } from "@/data/posts";
+
+const POSTS_URL = "https://functions.poehali.dev/3e6bc021-5697-4115-b160-136d5f3f0158";
+
+interface ApiPost {
+  id: number;
+  slug: string;
+  title: string;
+  emoji: string;
+  readTime: string;
+  description: string;
+  category: Category;
+  content?: string;
+  createdAt: string;
+}
+
+function apiToPost(p: ApiPost): Post {
+  return {
+    id: p.id,
+    title: p.title,
+    excerpt: p.description || "",
+    category: p.category,
+    emoji: p.emoji,
+    readTime: parseInt(p.readTime) || 5,
+    content: p.content || "",
+    slug: p.slug,
+  };
+}
 
 type Page = "blog" | "post" | "about" | "support" | "admin";
 type Filter = "все" | Category;
@@ -88,24 +115,35 @@ function renderContent(content: string) {
 }
 
 function PostPage({ post, onBack }: { post: Post; onBack: () => void }) {
+  const [fullPost, setFullPost] = useState<Post>(post);
+
+  useEffect(() => {
+    if (post.slug) {
+      fetch(`${POSTS_URL}?slug=${post.slug}`)
+        .then((r) => r.json())
+        .then((data: ApiPost) => setFullPost(apiToPost(data)))
+        .catch(() => {});
+    }
+  }, [post.slug]);
+
   return (
     <div className="animate-fade-in max-w-2xl mx-auto">
       <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-white font-montserrat text-sm mb-8 transition-colors">
         <Icon name="ArrowLeft" size={16} /> Все статьи
       </button>
       <div className="mb-6">
-        <span className={`text-xs font-montserrat font-semibold px-3 py-1 rounded-full border ${CATEGORY_COLOR[post.category]}`}>
-          {post.category}
+        <span className={`text-xs font-montserrat font-semibold px-3 py-1 rounded-full border ${CATEGORY_COLOR[fullPost.category]}`}>
+          {fullPost.category}
         </span>
       </div>
-      <div className="text-5xl mb-4">{post.emoji}</div>
-      <h1 className="font-montserrat font-black text-white text-2xl sm:text-3xl leading-tight mb-3">{post.title}</h1>
+      <div className="text-5xl mb-4">{fullPost.emoji}</div>
+      <h1 className="font-montserrat font-black text-white text-2xl sm:text-3xl leading-tight mb-3">{fullPost.title}</h1>
       <div className="flex items-center gap-2 text-white/30 text-sm font-golos mb-8">
         <Icon name="Clock" size={14} />
-        <span>{post.readTime} минут чтения</span>
+        <span>{fullPost.readTime} минут чтения</span>
       </div>
       <div className="glass-card border border-white/10 rounded-2xl p-6 sm:p-8">
-        {renderContent(post.content)}
+        {renderContent(fullPost.content)}
       </div>
 
       <div className="mt-10 glass-card border border-white/10 rounded-2xl p-6 text-center">
@@ -126,8 +164,18 @@ function PostPage({ post, onBack }: { post: Post; onBack: () => void }) {
 function BlogPage({ onOpenPost }: { onOpenPost: (post: Post) => void }) {
   const [filter, setFilter] = useState<Filter>("все");
   const [search, setSearch] = useState("");
+  const [dbPosts, setDbPosts] = useState<Post[]>([]);
 
-  const filtered = posts.filter((p) => {
+  useEffect(() => {
+    fetch(POSTS_URL)
+      .then((r) => r.json())
+      .then((data: ApiPost[]) => setDbPosts(data.map(apiToPost)))
+      .catch(() => {});
+  }, []);
+
+  const allPosts = [...dbPosts, ...staticPosts];
+
+  const filtered = allPosts.filter((p) => {
     const matchCat = filter === "все" || p.category === filter;
     const matchSearch = p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.excerpt.toLowerCase().includes(search.toLowerCase());
@@ -352,18 +400,33 @@ function AdminPage() {
     setLoading(false);
   };
 
-  const handleSave = () => {
-    const newPost = {
-      id: Date.now(),
-      title, excerpt, category,
-      emoji, readTime: parseInt(readTime), content,
-    };
-    const existing = JSON.parse(localStorage.getItem("admin_posts") || "[]");
-    existing.push(newPost);
-    localStorage.setItem("admin_posts", JSON.stringify(existing));
-    setSaved(true);
-    setTitle(""); setExcerpt(""); setContent(""); setEmoji("📝");
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(POSTS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description: excerpt,
+          category,
+          emoji,
+          readTime: readTime + " мин",
+          content,
+        }),
+      });
+      const data = await res.json();
+      if (data.id) {
+        setSaved(true);
+        setTitle(""); setExcerpt(""); setContent(""); setEmoji("📝"); setReadTime("5");
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        setError("Ошибка сохранения. Попробуй ещё раз.");
+      }
+    } catch {
+      setError("Ошибка соединения. Попробуй позже.");
+    }
+    setLoading(false);
   };
 
   if (step === "gate") {
@@ -479,16 +542,19 @@ function AdminPage() {
 
         <button
           onClick={handleSave}
-          disabled={!title || !content}
+          disabled={!title || !content || loading}
           className="w-full shimmer-btn text-white font-montserrat font-bold py-3 rounded-xl transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {saved ? "✅ Сохранено!" : "Сохранить статью"}
+          {loading ? "Сохраняю..." : saved ? "✅ Опубликовано!" : "Сохранить статью"}
         </button>
 
         {saved && (
-          <p className="font-golos text-white/40 text-xs text-center">
-            Статья сохранена локально. Для публикации на сайте — передай данные разработчику.
+          <p className="font-golos text-green-400 text-xs text-center">
+            Статья опубликована и теперь видна на главной странице блога.
           </p>
+        )}
+        {error && (
+          <p className="font-golos text-rose-400 text-xs text-center">{error}</p>
         )}
       </div>
     </div>
